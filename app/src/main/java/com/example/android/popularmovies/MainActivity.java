@@ -1,6 +1,7 @@
 package com.example.android.popularmovies;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -31,16 +32,16 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class MainActivity extends AppCompatActivity implements RecycleviewAdapter.ListItemClickListener {
+public class MainActivity extends AppCompatActivity implements RecycleviewAdapter.GridItemClickListener {
     private int itemsCount = 0; //holds the total # of movie items that must be handle by the RecyclerView
     private URL tmdbApiQueryUrl;
     private RecyclerView mRecyclerView; //handles the display of movie items within the main activity
     private RecycleviewAdapter myAdapter; //needed by the RecyclerView above for handling items display
     private Context context = this; //holds a reference to the Context of the current activity
     private ArrayList<Movie> movieArrayList; //holds a reference to the list of movie items that must be displayed
-    private RecycleviewAdapter.ListItemClickListener listener = this; //holds a reference to the ClickListener implemented by the current activity
+    private RecycleviewAdapter.GridItemClickListener listener = this; //holds a reference to the ClickListener implemented by the current activity
     private String toastMessage = "No connectivity....";
-    private String myApiKey =""; // PLEASE INSERT YOUR API KEY VALUE in this variable
+    private String API_KEY = BuildConfig.API_KEY; // PLEASE INSERT YOUR API KEY
 
     @Override
     /**
@@ -55,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
     /**
      * This method checks the connectivity of the device and return true (or false)
      * when the device has (or does not have) access to Internet
+     *
      * @return
      */
     public boolean isOnline() {
@@ -73,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
         } else {
             makeTmdbApiQueryUrl("popular");
             if (isOnline()) {
-                new QueryTask().execute(tmdbApiQueryUrl);
+                new FetchMyDataTask(this, new FetchMyDataTaskCompleteListener()).execute(tmdbApiQueryUrl);
             } else {
                 Toast.makeText(this, toastMessage, Toast.LENGTH_LONG).show();
             }
@@ -97,7 +99,7 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
                 .appendPath("3")
                 .appendPath("movie")
                 .appendPath(sortOrder)
-                .appendQueryParameter("api_key", myApiKey);
+                .appendQueryParameter("api_key", API_KEY);
 
         String tmdbApiQueryString = tmdbApiUrlBuilder.build().toString();
         tmdbApiQueryUrl = NetworkUtils.buildUrl(tmdbApiQueryString);
@@ -106,6 +108,7 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
     /**
      * This method builds an ArrayList of movie items from a JSONArray of movie properties.
      * Here, the JSONArray will be retrieved from the TmdbAPI query.
+     *
      * @param resultArray
      * @throws JSONException
      */
@@ -118,7 +121,9 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
             String title = movieItem.getString("title");
             String overview = movieItem.getString("overview");
             String poster_path = movieItem.getString("poster_path");
-            Movie movie = new Movie(id, title, overview, poster_path);
+            String rating = movieItem.getString("vote_average");
+            String releaseDate = movieItem.getString("release_date");
+            Movie movie = new Movie(id, title, overview, poster_path, rating, releaseDate);
             movieArrayList.add(movie);
         }
     }
@@ -151,13 +156,13 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
         itemsCount = movieArrayList.size();
     }
 
-    /**
-     * This method will hold the code to execute when a user clicks on a movie item.
-     * @param clickedItemIndex
-     */
-    @Override
-    public void onListItemClick(int clickedItemIndex) {
 
+    private void launchDetailActivity(Movie movie) {
+
+        Intent intent = new Intent(this, MovieDetail.class);
+        intent.putExtra("selectedMovieKey", movie);
+
+        startActivity(intent);
     }
 
     @Override
@@ -173,7 +178,8 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
         if (itemThatWasClickedId == R.id.mi_Popular) {
             makeTmdbApiQueryUrl("popular");
             if (isOnline()) {
-                new QueryTask().execute(tmdbApiQueryUrl);
+
+                new FetchMyDataTask(this, new FetchMyDataTaskCompleteListener()).execute(tmdbApiQueryUrl);
             } else {
                 Toast.makeText(this, toastMessage, Toast.LENGTH_LONG).show();
             }
@@ -182,7 +188,8 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
         if (itemThatWasClickedId == R.id.mi_topRated) {
             makeTmdbApiQueryUrl("top_rated");
             if (isOnline()) {
-                new QueryTask().execute(tmdbApiQueryUrl);
+
+                new FetchMyDataTask(this, new FetchMyDataTaskCompleteListener()).execute(tmdbApiQueryUrl);
             } else {
                 Toast.makeText(this, toastMessage, Toast.LENGTH_LONG).show();
             }
@@ -191,25 +198,23 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
         return super.onOptionsItemSelected(item);
     }
 
-    public class QueryTask extends AsyncTask<URL, Void, String> {
+    /**
+     * This method call the code to execute when a user clicks on a movie item.
+     *
+     * @param clickedItem
+     */
+    @Override
+    public void onGridItemClick(Movie clickedItem) {
+        launchDetailActivity(clickedItem);
+    }
 
-        @Override
-        protected String doInBackground(URL... params) {
-            URL searchUrl = params[0];
-            String tmdbApiQueryResults = null;
-            try {
-                publishProgress();
-                tmdbApiQueryResults = NetworkUtils.getResponseFromHttpUrl(searchUrl);
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return tmdbApiQueryResults;
-        }
+    public class FetchMyDataTaskCompleteListener implements AsyncTaskCompleteListener<String> {
 
 
         @Override
-        protected void onPostExecute(String tmdbApiQueryResults) {
+        public void onTaskComplete(String tmdbApiQueryResults) {
+
             if (tmdbApiQueryResults != null && !tmdbApiQueryResults.equals("")) {
                 JSONArray resultArray = getResultsArray(tmdbApiQueryResults);
 
@@ -239,13 +244,7 @@ public class MainActivity extends AppCompatActivity implements RecycleviewAdapte
                 myAdapter = new RecycleviewAdapter(itemsCount, listener, movieArrayList, context);
 
                 mRecyclerView.setAdapter(myAdapter); //link the recyclerView and te view adapter
-
             }
-        }
-
-        @Override
-        protected void onProgressUpdate(Void... values) {
-            super.onProgressUpdate(values);
         }
     }
 }

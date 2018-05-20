@@ -19,12 +19,12 @@ import java.util.ArrayList;
 public class RecycleviewAdapter extends RecyclerView.Adapter<RecycleviewAdapter.MyViewHolder> {
 
     private static int viewHolderCount;
-    final private ListItemClickListener mOnClickListener;
+    final private GridItemClickListener mOnClickListener;
     private int viewItemsCount;
     private ArrayList<Movie> movieArrayList;
     private Context context;
 
-    public RecycleviewAdapter(int numberOfItems, ListItemClickListener listener, ArrayList moviesList, Context appContext) {
+    public RecycleviewAdapter(int numberOfItems, GridItemClickListener listener, ArrayList moviesList, Context appContext) {
         viewItemsCount = numberOfItems;
         mOnClickListener = listener;
         viewHolderCount = 0;
@@ -47,7 +47,7 @@ public class RecycleviewAdapter extends RecyclerView.Adapter<RecycleviewAdapter.
 
     @Override
     public void onBindViewHolder(MyViewHolder holder, int position) {
-        holder.bind(context);
+        holder.bind(context, movieArrayList.get(position), mOnClickListener);
     }
 
     @Override
@@ -55,11 +55,11 @@ public class RecycleviewAdapter extends RecyclerView.Adapter<RecycleviewAdapter.
         return viewItemsCount;
     }
 
-    public interface ListItemClickListener {
-        void onListItemClick(int clickedItemIndex);
+    public interface GridItemClickListener {
+        void onGridItemClick(Movie clickedItemIndex);
     }
 
-    public class MyViewHolder extends RecyclerView.ViewHolder {
+    public class MyViewHolder extends RecyclerView.ViewHolder  {
         ImageView movieImageView;
 
         public MyViewHolder(View itemView) {
@@ -67,15 +67,20 @@ public class RecycleviewAdapter extends RecyclerView.Adapter<RecycleviewAdapter.
             movieImageView = (ImageView) itemView.findViewById(R.id.iv_movie);
         }
 
-        void bind(Context context) {
+       public  void bind(Context context, final Movie movie, final GridItemClickListener listener) {
             int index = viewHolderCount - 1;
             StringBuilder url = new StringBuilder("http://image.tmdb.org/t/p/w185/");
             Movie movieItem = movieArrayList.get(index);
             String poster_path = movieItem.getPosterPath();
             url.append(poster_path);
-            //     movieTextView.setText(title);
             Picasso.with(context).load(url.toString()).into(movieImageView);
+           itemView.setOnClickListener(new View.OnClickListener() {
+               @Override public void onClick(View v) {
+                   listener.onGridItemClick(movie);
+               }
+           });
 
         }
-    }
+
+       }
 }
